@@ -8,10 +8,13 @@ const { sendPass } = require('./mailer')
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY)
 const app = express()
 const port = process.env.PORT || 7070
-const baseUrl = process.env.BASE_URL || `http://localhost:${port}`
 
+app.set('trust proxy', 1)
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'view'))
+
+const getBaseUrl = (req) =>
+  process.env.BASE_URL || `${req.protocol}://${req.get('host')}`
 
 // Webhook needs the RAW body, so it goes before express.urlencoded
 app.post(
@@ -61,6 +64,7 @@ app.post('/checkout', async (req, res) => {
     airportodepart,
     airportoarrival,
   } = req.body
+
   if (
     ![
       firstname,
@@ -73,7 +77,10 @@ app.post('/checkout', async (req, res) => {
   ) {
     return res.redirect('/')
   }
+
   try {
+    const baseUrl = getBaseUrl(req)
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       adaptive_pricing: { enabled: false }, // charge in USD only, no PKR conversion
